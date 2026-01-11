@@ -1,0 +1,50 @@
+{
+    "name": "simone-bianco/laravel-simple-tags",
+    "description": "A high-performance simpler alternative to Spatie Laravel Tags with string columns",
+    "keywords": [
+        "laravel",
+        "tags",
+        "performance",
+        "json-free"
+    ],
+    "homepage": "https://github.com/simone-bianco/laravel-simple-tags",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Simone Bianco",
+            "email": "simone@example.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "illuminate/database": "^10.0|^11.0|^12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0",
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "SimoneBianco\\LaravelSimpleTags\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SimoneBianco\\LaravelSimpleTags\\Tests\\": "tests"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "SimoneBianco\\LaravelSimpleTags\\SimpleTagsServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
