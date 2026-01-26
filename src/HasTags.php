@@ -22,7 +22,7 @@ trait HasTags
         });
     }
 
-    public function getTagsTypes(): Collection
+    public function getTagsTypes(): \Illuminate\Support\Collection
     {
         return $this->tags->groupBy('type')->pluck('type');
     }
