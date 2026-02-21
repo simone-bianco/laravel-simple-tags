@@ -106,4 +106,9 @@ class Tag extends Model
     {
         return static::groupBy('type')->orderBy('type')->pluck('type');
     }
+
+    public function taggables()
+    {
+
+    }
 }
