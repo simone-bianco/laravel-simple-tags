@@ -6,7 +6,9 @@ use ArrayAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as DbCollection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Tag extends Model
@@ -107,8 +109,19 @@ class Tag extends Model
         return static::groupBy('type')->orderBy('type')->pluck('type');
     }
 
-    public function taggables()
+    public function getTaggableCountAttribute(): int
     {
+        return DB::table('taggables')
+            ->where('tag_id', $this->id)
+            ->count();
+    }
 
+    public function scopeWithTaggableCount($query)
+    {
+        return $query->addSelect([
+            'taggable_count' => DB::table('taggables')
+                ->selectRaw('count(*)')
+                ->whereColumn('tag_id', 'tags.id')
+        ]);
     }
 }
