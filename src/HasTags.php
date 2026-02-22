@@ -17,14 +17,14 @@ trait HasTags
 
     public function getTagsSlugsByType(): \Illuminate\Support\Collection
     {
-        return $this->tags->groupBy('type')->map(function (\Illuminate\Support\Collection $tags) {
+        return $this->tags->groupBy('tag_type_id')->map(function (\Illuminate\Support\Collection $tags) {
             return $tags->pluck('slug');
         });
     }
 
     public function getTagsTypes(): \Illuminate\Support\Collection
     {
-        return $this->tags->groupBy('type')->pluck('type');
+        return $this->tags->pluck('tag_type_id')->unique();
     }
 
     public static function getTagClassName(): string
@@ -173,17 +173,17 @@ trait HasTags
         );
     }
 
-    public function scopeWithAnyTagsOfType(Builder $query, string|array $type): Builder
+    public function scopeWithAnyTagsOfType(Builder $query, int|array $tagTypeId): Builder
     {
         return $query->whereHas(
             'tags',
-            fn (Builder $query) => $query->whereIn('type', (array) $type)
+            fn (Builder $query) => $query->whereIn('tag_type_id', (array) $tagTypeId)
         );
     }
 
-    public function tagsWithType(?string $type = null): Collection
+    public function tagsWithType(?int $tagTypeId = null): Collection
     {
-        return $this->tags->filter(fn (Tag $tag) => $tag->type === $type);
+        return $this->tags->filter(fn (Tag $tag) => $tag->tag_type_id === $tagTypeId);
     }
 
     public function attachTags(array | ArrayAccess | Tag $tags, ?string $type = null): static
@@ -231,34 +231,34 @@ trait HasTags
         return $this;
     }
 
-    public function syncTagsWithType(array | ArrayAccess $tags, string | null $type = null): static
+    public function syncTagsWithType(array | ArrayAccess $tags, int | null $tagTypeId = null): static
     {
         $className = static::getTagClassName();
 
-        $tags = collect($className::findOrCreate($tags, $type));
+        $tags = collect($className::findOrCreate($tags, $tagTypeId));
 
-        $this->syncTagIds($tags->pluck('id')->toArray(), $type);
+        $this->syncTagIds($tags->pluck('id')->toArray(), $tagTypeId);
 
         return $this;
     }
 
-    protected static function convertToTags($values, $type = null)
+    protected static function convertToTags($values, $tagTypeId = null)
     {
         if ($values instanceof Tag) {
             $values = [$values];
         }
 
-        return collect($values)->map(function ($value) use ($type) {
+        return collect($values)->map(function ($value) use ($tagTypeId) {
             if ($value instanceof Tag) {
-                if (isset($type) && $value->type != $type) {
-                    throw new InvalidArgumentException("Type was set to {$type} but tag is of type {$value->type}");
+                if (isset($tagTypeId) && $value->tag_type_id != $tagTypeId) {
+                    throw new InvalidArgumentException("TagTypeId was set to {$tagTypeId} but tag has different tag_type_id");
                 }
                 return $value;
             }
 
             $className = static::getTagClassName();
 
-            return $className::findFromString($value, $type);
+            return $className::findFromString($value, $tagTypeId);
         });
     }
 
@@ -275,13 +275,12 @@ trait HasTags
         })->flatten();
     }
 
-    public function syncTagIds($ids, string | null $type = null, $detaching = true): void
+    public function syncTagIds($ids, int | null $tagTypeId = null, $detaching = true): void
     {
         $isUpdated = false;
 
         $tagModel = $this->tags()->getRelated();
 
-        // Get a list of tag_ids for all current tags
         $current = $this->tags()
             ->newPivotStatement()
             ->where($this->getTaggableMorphName() . '_id', $this->getKey())
@@ -292,18 +291,16 @@ trait HasTags
                 '=',
                 $tagModel->getTable() . '.' . $tagModel->getKeyName()
             )
-            ->where($tagModel->getTable() . '.type', $type)
+            ->where($tagModel->getTable() . '.tag_type_id', $tagTypeId)
             ->pluck('tag_id')
             ->all();
 
-        // Compare to the list of ids given to find the tags to remove
         $detach = array_diff($current, $ids);
         if ($detaching && count($detach) > 0) {
             $this->tags()->detach($detach);
             $isUpdated = true;
         }
 
-        // Attach any new ids
         $attach = array_unique(array_diff($ids, $current));
         if (count($attach) > 0) {
             $this->tags()->attach($attach, []);
@@ -316,10 +313,10 @@ trait HasTags
         }
     }
 
-    public function hasTag($tag, ?string $type = null): bool
+    public function hasTag($tag, ?int $tagTypeId = null): bool
     {
         return $this->tags
-            ->when($type !== null, fn ($query) => $query->where('type', $type))
+            ->when($tagTypeId !== null, fn ($query) => $query->where('tag_type_id', $tagTypeId))
             ->contains(function ($modelTag) use ($tag) {
                 return $modelTag->name === $tag || $modelTag->slug === $tag;
             });

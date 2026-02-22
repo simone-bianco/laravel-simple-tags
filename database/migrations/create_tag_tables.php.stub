@@ -8,33 +8,31 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('tags', function (Blueprint $table) {
+        Schema::create('tag_types', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->string('slug');
-            $table->string('type')->nullable()->index();
+            $table->string('alias');
+            $table->string('label');
             $table->integer('order_column')->nullable();
             $table->timestamps();
 
-            $table->unique(['name', 'type']);
-            $table->unique(['slug', 'type']);
+            $table->unique('alias');
+        });
+
+        Schema::create('tags', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tag_type_id')->nullable()->constrained('tag_types')->nullOnDelete();
+            $table->string('name');
+            $table->string('slug');
+            $table->integer('order_column')->nullable();
+            $table->timestamps();
+
+            $table->unique(['name', 'tag_type_id']);
+            $table->unique(['slug', 'tag_type_id']);
         });
 
         Schema::create('taggables', function (Blueprint $table) {
             $table->foreignId('tag_id')->constrained('tags')->cascadeOnDelete();
-            
-            // We use morphs here. Note: Spatie allows customizing table name, so should we.
-            $taggableTable = config('tags.taggable.table_name', 'taggables');
-            
-            // Assuming this runs INSIDE the closure, checking config might be tricky if not properly loaded 
-            // but usually Migration runs in app context.
-            // Wait, for standardization, Spatie's stub usually hardcodes 'taggables' or uses variables passed dynamically?
-            // Standard Spatie stub uses `Schema::create('taggables', ...)` directly.
-            // But they do have config. Let's stick to 'taggables' for simplicity as per user stub example in prompt.
-            // Wait, the user provided Spatie's migration which uses `tags` and `taggables`.
-            
             $table->uuidMorphs('taggable');
-
             $table->unique(['tag_id', 'taggable_id', 'taggable_type']);
         });
     }
@@ -43,5 +41,6 @@ return new class extends Migration
     {
         Schema::dropIfExists('taggables');
         Schema::dropIfExists('tags');
+        Schema::dropIfExists('tag_types');
     }
 };

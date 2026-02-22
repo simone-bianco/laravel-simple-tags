@@ -6,7 +6,7 @@ use ArrayAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as DbCollection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -30,13 +30,28 @@ class Tag extends Model
         });
     }
 
-    public function scopeWithType(Builder $query, ?string $type = null): Builder
+    public function tagType(): BelongsTo
     {
-        if (is_null($type)) {
+        $tagTypeModel = config('tags.tag_type_model', TagType::class);
+        return $this->belongsTo($tagTypeModel, 'tag_type_id');
+    }
+
+    public function scopeWithType(Builder $query, ?int $tagTypeId = null): Builder
+    {
+        if (is_null($tagTypeId)) {
             return $query;
         }
 
-        return $query->where('type', $type);
+        return $query->where('tag_type_id', $tagTypeId);
+    }
+
+    public function scopeWithTypeAlias(Builder $query, ?string $alias = null): Builder
+    {
+        if (is_null($alias)) {
+            return $query;
+        }
+
+        return $query->whereHas('tagType', fn ($q) => $q->where('alias', $alias));
     }
 
     public function scopeContaining(Builder $query, string $name): Builder
@@ -51,30 +66,28 @@ class Tag extends Model
 
     public static function findOrCreate(
         string | array | ArrayAccess $values,
-        string | null $type = null
+        int | null $tagTypeId = null
     ): Collection | Tag | static {
-        $tags = collect($values)->map(function ($value) use ($type) {
+        $tags = collect($values)->map(function ($value) use ($tagTypeId) {
             if ($value instanceof self) {
                 return $value;
             }
 
-            return static::findOrCreateFromString($value, $type);
+            return static::findOrCreateFromString($value, $tagTypeId);
         });
 
         return is_string($values) ? $tags->first() : $tags;
     }
 
-    public static function getWithType(string $type): DbCollection
+    public static function getWithType(int $tagTypeId): DbCollection
     {
-        return static::withType($type)->get();
+        return static::withType($tagTypeId)->get();
     }
 
-    public static function findFromString(string $name, ?string $type = null)
+    public static function findFromString(string $name, ?int $tagTypeId = null)
     {
-        // Simple string match.
-        // Spatie handles locale here, we don't.
         return static::query()
-            ->where('type', $type)
+            ->where('tag_type_id', $tagTypeId)
             ->where(function ($query) use ($name) {
                 $query->where('name', $name)
                     ->orWhere('slug', $name);
@@ -90,14 +103,14 @@ class Tag extends Model
             ->get();
     }
 
-    public static function findOrCreateFromString(string $name, ?string $type = null)
+    public static function findOrCreateFromString(string $name, ?int $tagTypeId = null)
     {
-        $tag = static::findFromString($name, $type);
+        $tag = static::findFromString($name, $tagTypeId);
 
         if (! $tag) {
             $tag = static::create([
-                'name' => $name,
-                'type' => $type,
+                'name'        => $name,
+                'tag_type_id' => $tagTypeId,
             ]);
         }
 
@@ -106,7 +119,11 @@ class Tag extends Model
 
     public static function getTypes(): Collection
     {
-        return static::groupBy('type')->orderBy('type')->pluck('type');
+        return static::query()
+            ->join('tag_types', 'tags.tag_type_id', '=', 'tag_types.id')
+            ->orderBy('tag_types.alias')
+            ->pluck('tag_types.alias')
+            ->unique();
     }
 
     public function getTaggableCountAttribute(): int
