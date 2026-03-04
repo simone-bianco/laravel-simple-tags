@@ -186,24 +186,24 @@ trait HasTags
         return $this->tags->filter(fn (Tag $tag) => $tag->tag_type_id === $tagTypeId);
     }
 
-    public function attachTags(array | ArrayAccess | Tag $tags, ?string $type = null): static
+    public function attachTags(array | ArrayAccess | Tag $tags, int | null $tagTypeId = null): static
     {
         $className = static::getTagClassName();
-        $tags = collect($className::findOrCreate($tags, $type));
+        $tags = collect($className::findOrCreate($tags, $tagTypeId));
 
         $this->tags()->syncWithoutDetaching($tags->pluck('id')->toArray());
 
         return $this;
     }
 
-    public function attachTag(string | Tag $tag, ?string $type = null)
+    public function attachTag(string | Tag $tag, int | null $tagTypeId = null)
     {
-        return $this->attachTags([$tag], $type);
+        return $this->attachTags([$tag], $tagTypeId);
     }
 
-    public function detachTags(array | ArrayAccess $tags, ?string $type = null): static
+    public function detachTags(array | ArrayAccess $tags, int | null $tagTypeId = null): static
     {
-        $tags = static::convertToTags($tags, $type);
+        $tags = static::convertToTags($tags, $tagTypeId);
 
         collect($tags)
             ->filter()
@@ -212,9 +212,9 @@ trait HasTags
         return $this;
     }
 
-    public function detachTag(string | Tag $tag, ?string $type = null): static
+    public function detachTag(string | Tag $tag, int | null $tagTypeId = null): static
     {
-        return $this->detachTags([$tag], $type);
+        return $this->detachTags([$tag], $tagTypeId);
     }
 
     public function syncTags(string | array | ArrayAccess $tags): static
